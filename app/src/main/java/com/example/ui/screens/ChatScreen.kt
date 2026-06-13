@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,7 +137,7 @@ fun ChatScreen(
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("chat_back_button")) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Return")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Return")
                     }
                 },
                 title = {
@@ -247,7 +249,7 @@ fun ChatScreen(
                 }
             )
         },
-        modifier = modifier
+        modifier = modifier.imePadding()
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -274,10 +276,14 @@ fun ChatScreen(
         if (showKeyEditor) {
             KeyEditorDialog(
                 currentSecret = viewModel.sharedSecretInput,
-                onDismiss = { showKeyEditor = false },
+                onDismiss = { 
+                    showKeyEditor = false 
+                    focusManager.clearFocus()
+                },
                 onSave = {
                     viewModel.updateSharedSecret(it)
                     showKeyEditor = false
+                    focusManager.clearFocus()
                     coroutineScope.launch {
                         delay(200)
                         if (messages.isNotEmpty()) {
@@ -584,7 +590,6 @@ fun ChatBottomInputBar(
         cornerRadius = 24.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier.padding(12.dp)
@@ -725,10 +730,10 @@ fun ChatBottomInputBar(
                                 .testTag("send_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
                                 modifier = Modifier.size(20.dp)
-                            )
+                             )
                         }
                     }
                 }

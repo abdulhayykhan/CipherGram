@@ -267,7 +267,7 @@ fun SessionScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                         Text(
                             text = " OR MANUAL VALUE INPUT ",
                             fontSize = 10.sp,
@@ -275,7 +275,7 @@ fun SessionScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
-                        Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                     }
 
                     OutlinedTextField(
@@ -598,7 +598,6 @@ fun SessionScreen(
                                             
                                             settings.javaScriptEnabled = true
                                             settings.domStorageEnabled = true
-                                            settings.databaseEnabled = true
                                             settings.useWideViewPort = true
                                             settings.loadWithOverviewMode = true
                                             
