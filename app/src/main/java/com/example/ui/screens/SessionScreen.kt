@@ -81,6 +81,26 @@ fun SessionScreen(
         return ""
     }
 
+    fun extractCookieValue(cookieString: String, key: String): String {
+        return parseCookieValue(cookieString, key)
+    }
+
+    val onSessionExtracted: (String, String, String) -> Unit = { sessionToken, dsUserId, csrftoken ->
+        viewModel.saveManualProtocolConfig(
+            username = "ig_user_$dsUserId",
+            targetUserId = dsUserId,
+            sessionToken = sessionToken,
+            csrfToken = csrftoken,
+            userAgent = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+        )
+        WebStorage.getInstance().deleteAllData()
+        android.webkit.CookieManager.getInstance().removeAllCookies(null)
+        android.webkit.CookieManager.getInstance().flush()
+
+        showWebAuthSheet = false
+        onNavigateToChats()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -573,12 +593,18 @@ fun SessionScreen(
                                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                                 ViewGroup.LayoutParams.MATCH_PARENT
                                             )
+                                            // Override raw default package tokens with an authentic Android mobile Chrome footprint
+                                            settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+                                            
                                             settings.javaScriptEnabled = true
                                             settings.domStorageEnabled = true
                                             settings.databaseEnabled = true
                                             settings.useWideViewPort = true
                                             settings.loadWithOverviewMode = true
-
+                                            
+                                            // Allow third-party cookie sync to guarantee seamless Multi-Factor Authentication (MFA) or SSO redirections
+                                            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                            
                                             webViewClient = object : WebViewClient() {
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                                     super.onPageStarted(view, url, favicon)
@@ -588,32 +614,30 @@ fun SessionScreen(
                                                 override fun onPageFinished(view: WebView?, url: String?) {
                                                     super.onPageFinished(view, url)
                                                     isWebViewLoading = false
-                                                    if (url == null) return
-                                                    
-                                                    val cookieManager = CookieManager.getInstance()
-                                                    val cookies = cookieManager.getCookie(url) ?: ""
-                                                    if (cookies.contains("sessionid") && cookies.contains("ds_user_id")) {
-                                                        val sessionToken = parseCookieValue(cookies, "sessionid")
-                                                        val targetUserId = parseCookieValue(cookies, "ds_user_id")
-                                                        val csrfToken = parseCookieValue(cookies, "csrftoken")
-
-                                                        if (sessionToken.isNotEmpty() && targetUserId.isNotEmpty()) {
-                                                            viewModel.saveManualProtocolConfig(
-                                                                username = "ig_user_$targetUserId",
-                                                                targetUserId = targetUserId,
-                                                                sessionToken = sessionToken,
-                                                                csrfToken = csrfToken,
-                                                                userAgent = settings.userAgentString ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                                                            )
-
-                                                            WebStorage.getInstance().deleteAllData()
-                                                            cookieManager.removeAllCookies(null)
-                                                            cookieManager.flush()
-
-                                                            showWebAuthSheet = false
-                                                            onNavigateToChats()
+                                                    url?.let { currentUrl ->
+                                                        if (currentUrl.contains("instagram.com") && !currentUrl.contains("login")) {
+                                                            val cookieManager = android.webkit.CookieManager.getInstance()
+                                                            val cookies = cookieManager.getCookie(currentUrl)
+                                                            if (!cookies.isNullOrEmpty()) {
+                                                                val sessionid = extractCookieValue(cookies, "sessionid")
+                                                                val dsUserId = extractCookieValue(cookies, "ds_user_id")
+                                                                val csrftoken = extractCookieValue(cookies, "csrftoken")
+                                                                
+                                                                if (!sessionid.isNullOrEmpty()) {
+                                                                    onSessionExtracted(sessionid, dsUserId ?: "", csrftoken ?: "")
+                                                                }
+                                                            }
                                                         }
                                                     }
+                                                }
+                                                
+                                                override fun onReceivedError(
+                                                    view: WebView?,
+                                                    request: android.webkit.WebResourceRequest?,
+                                                    error: android.webkit.WebResourceError?
+                                                ) {
+                                                    super.onReceivedError(view, request, error)
+                                                    // Graceful fallback to avoid unhandled blank rendering loops
                                                 }
                                             }
                                             loadUrl("https://www.instagram.com/accounts/login/")

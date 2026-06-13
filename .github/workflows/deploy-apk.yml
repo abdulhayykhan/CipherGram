@@ -1,0 +1,53 @@
+name: CipherGram Production Deployment Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  prep-and-compile:
+    name: Production APK Compilation & Artifact Distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Repository Source Context
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Java Development Kit Environment (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Operational Permissions to Gradle Wrapper
+        run: chmod +x ./gradlew
+
+      - name: Decode Production Release Keystore from Secure Secrets Store
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > app/ciphergram-release.jks
+
+      - name: Execute Production Release Build Variant Assembly
+        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_FILE: "ciphergram-release.jks"
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Verify Signed Production Binary Mapping Alignment
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk ./CipherGram.apk
+
+      - name: Instatiate Distribution Target Asset on GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./CipherGram.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
