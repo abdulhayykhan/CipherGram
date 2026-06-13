@@ -22,7 +22,7 @@ android {
 
   signingConfigs {
     create("release") {
-      storeFile = file(System.getenv("KEYSTORE_FILE") ?: "ciphergram-release.jks")
+      storeFile = file("ciphergram-release.jks") // Looks directly inside the app module directory footprint
       storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
       keyAlias = System.getenv("KEY_ALIAS") ?: ""
       keyPassword = System.getenv("KEY_PASSWORD") ?: ""
