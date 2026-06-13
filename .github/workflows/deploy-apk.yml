@@ -13,6 +13,10 @@ jobs:
     name: Production APK Compilation & Artifact Distribution
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ./CipherGram
+
     steps:
       - name: Check out Repository Source Context
         uses: actions/checkout@v4
@@ -45,9 +49,9 @@ jobs:
       - name: Verify Signed Production Binary Mapping Alignment
         run: |
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            mv app/build/outputs/apk/release/app-release.apk ./CipherGram.apk
+            mv app/build/outputs/apk/release/app-release.apk ../CipherGram.apk
           elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            mv app/build/outputs/apk/release/app-release-unsigned.apk ./CipherGram.apk
+            mv app/build/outputs/apk/release/app-release-unsigned.apk ../CipherGram.apk
           else
             echo "Error: No compiled APK asset located." && exit 1
           fi
@@ -55,7 +59,7 @@ jobs:
       - name: Instantiate Distribution Target Asset on GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: ./CipherGram.apk
+          files: ../CipherGram.apk
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
