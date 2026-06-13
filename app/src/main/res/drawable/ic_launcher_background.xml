@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- High-res Premium Diagonal Gradient Layer (Top-Left to Bottom-Right) -->
+    <path
+        android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:offset="0.0" android:color="#0B0E14" />
+                <item android:offset="0.5" android:color="#121722" />
+                <item android:offset="1.0" android:color="#1A2234" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Tech Grid Lines / Encryption Network Decors to give futuristic depths -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.25"
+        android:strokeAlpha="0.08"
+        android:pathData="M18,0 L18,108 M36,0 L36,108 M54,0 L54,108 M72,0 L72,108 M90,0 L90,108" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.25"
+        android:strokeAlpha="0.08"
+        android:pathData="M0,18 L108,18 M0,36 L108,36 M0,54 L108,54 M0,72 L108,72 M0,90 L108,90" />
+
+    <!-- Technical Circular radar echoes/concentric security circles centered at (54,54) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="0.5"
+        android:strokeAlpha="0.07"
+        android:pathData="M54,14 A40,40 0 1,1 53.9,14" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="0.5"
+        android:strokeAlpha="0.04"
+        android:pathData="M54,24 A30,30 0 1,1 53.9,24" />
+
+    <!-- Corner Ambient Tech Marks -->
+    <path
+        android:fillColor="#00E5FF"
+        android:fillAlpha="0.12"
+        android:pathData="M4,4h6v1.5h-4.5v4.5h-1.5z M104,4h-6v1.5h4.5v4.5h1.5z M4,104h6v-1.5h-4.5v-4.5h-1.5z M104,104h-6v-1.5h4.5v-4.5h1.5z" />
+
+</vector>

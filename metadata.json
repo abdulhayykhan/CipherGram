@@ -1,0 +1,6 @@
+{
+  "name": "CipherGram",
+  "description": "Secure client-side end-to-end encrypted messaging, media player scraper, and system share sheet integration for Instagram DMs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- High-Glow Inner Shadow / Ambient Decor -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeWidth="1.5"
+        android:strokeColor="#1AF5FF"
+        android:strokeAlpha="0.3"
+        android:pathData="M54,23 A31,31 0 0,1 85,54" />
+
+    <!-- Technical Chat Bubble Outer Ring System -->
+    <path
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M 34,74 C 26,67 21,56 21,45 C 21,27 36,12 54,12 C 72,12 87,27 87,45 C 87,63 72,78 54,78 C 47,78 40,76 34,74 L 24,78 L 28,68 Z">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="20"
+                android:startY="20"
+                android:endX="88"
+                android:endY="88">
+                <item android:offset="0.0" android:color="#00E5FF" />
+                <item android:offset="0.5" android:color="#00B0FF" />
+                <item android:offset="1.0" android:color="#18FFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Cyber Inner Interceptors -->
+    <path
+        android:strokeWidth="1.0"
+        android:strokeColor="#00E5FF"
+        android:strokeAlpha="0.35"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 28,38 A 20,20 0 0,1 80,38" />
+
+    <path
+        android:strokeWidth="1.0"
+        android:strokeColor="#00E5FF"
+        android:strokeAlpha="0.25"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 29,52 A 20,20 0 0,0 79,52" />
+
+    <!-- Central Security Shield Vector -->
+    <path
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:fillColor="#15263B"
+        android:fillAlpha="0.85"
+        android:pathData="M 54,26 C 54,26 62,29 69,28 C 69,38 68,54 54,64 C 40,54 39,38 39,28 C 46,29 54,26 54,26 Z">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="38"
+                android:startY="28"
+                android:endX="70"
+                android:endY="66">
+                <item android:offset="0.0" android:color="#00E5FF" />
+                <item android:offset="1.0" android:color="#00A5FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Shield Gloss/Emboss Highlights -->
+    <path
+        android:fillColor="#3000E5FF"
+        android:pathData="M 54,27.5 L 67,29.3 C 67,31 67.2,46.5 54,61 Z" />
+
+    <!-- Padlock - Shackle -->
+    <path
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 48,45 V 40 C 48,36 50,34 54,34 C 58,34 60,36 60,40 V 45">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="47"
+                android:startY="33"
+                android:endX="61"
+                android:endY="45">
+                <item android:offset="0.0" android:color="#FFFFFF" />
+                <item android:offset="1.0" android:color="#18FFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Lock Base -->
+    <path
+        android:strokeWidth="1.0"
+        android:strokeColor="#00E5FF"
+        android:strokeLineJoin="round"
+        android:pathData="M 45,45 H 63 A 2,2 0 0,1 65,47 V 55 A 2,2 0 0,1 63,57 H 45 A 2,2 0 0,1 43,55 V 47 A 2,2 0 0,1 45,45 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="43"
+                android:startY="43"
+                android:endX="65"
+                android:endY="58">
+                <item android:offset="0.0" android:color="#30F2FE" />
+                <item android:offset="0.5" android:color="#00B0FF" />
+                <item android:offset="1.0" android:color="#006064" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Padlock Inner Decor -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.25"
+        android:pathData="M 45,46 h 18 v 1.5 h -18 z" />
+
+    <!-- Keyhole -->
+    <path
+        android:fillColor="#15263B"
+        android:pathData="M 54,49 A 1.5,1.5 0 1,1 53.9,49 L 55,54 H 53 Z" />
+
+    <!-- Letter 'C' on Left of Shield for CipherGram Concept -->
+    <path
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 34,39 C 29,39 27,42 27,46 C 27,51 29,53 34,53">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="26"
+                android:startY="38"
+                android:endX="34"
+                android:endY="54">
+                <item android:offset="0.0" android:color="#E0F7FA" />
+                <item android:offset="1.0" android:color="#00E5FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Letter 'G' on Right of Shield for CipherGram Concept -->
+    <path
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 81,39 C 76,39 74,42 74,46 C 74,51 77,53 81,53 V 47.5 H 78">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="74"
+                android:startY="38"
+                android:endX="82"
+                android:endY="54">
+                <item android:offset="0.0" android:color="#E0F7FA" />
+                <item android:offset="1.0" android:color="#00E5FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>
