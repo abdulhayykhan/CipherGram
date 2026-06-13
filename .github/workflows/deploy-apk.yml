@@ -26,6 +26,9 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Generate Missing Gradle Wrapper
+        run: gradle wrapper
+
       - name: Grant Operational Permissions to Gradle Wrapper
         run: chmod +x ./gradlew
 
