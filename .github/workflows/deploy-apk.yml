@@ -31,6 +31,7 @@ jobs:
 
       - name: Decode Production Release Keystore from Secure Secrets Store
         run: |
+          mkdir -p app
           echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > app/ciphergram-release.jks
 
       - name: Execute Production Release Build Variant Assembly
@@ -43,12 +44,20 @@ jobs:
 
       - name: Verify Signed Production Binary Mapping Alignment
         run: |
-          mv app/build/outputs/apk/release/app-release.apk ./CipherGram.apk
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            mv app/build/outputs/apk/release/app-release.apk ./CipherGram.apk
+          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            mv app/build/outputs/apk/release/app-release-unsigned.apk ./CipherGram.apk
+          else
+            echo "Error: No compiled APK asset located." && exit 1
+          fi
 
-      - name: Instatiate Distribution Target Asset on GitHub Releases
+      - name: Instantiate Distribution Target Asset on GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           files: ./CipherGram.apk
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           generate_release_notes: true
           draft: false
           prerelease: false

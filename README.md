@@ -96,6 +96,16 @@ Copy the contents of `keystore-base64.txt` and populate your GitHub repository s
 
 ---
 
+## ⚙️ Manual Action Verification Checklist
+
+To ensure the automated setup can write release artifacts without authentication bottlenecks:
+1. Navigate to **Settings** > **Actions** > **General** inside the repository browser interface.
+2. Scroll to the **Workflow permissions** configuration block.
+3. Explicitly toggle the radio button to **"Read and write permissions"**.
+4. Check **"Allow GitHub Actions to create and approve pull requests"** and select **Save**.
+
+---
+
 ## 📄 License
 
 This project is open-source and available for educational and commercial use under the MIT License.
