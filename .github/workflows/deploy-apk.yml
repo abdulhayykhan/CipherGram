@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   prep-and-compile:
     name: Production APK Compilation & Artifact Distribution
