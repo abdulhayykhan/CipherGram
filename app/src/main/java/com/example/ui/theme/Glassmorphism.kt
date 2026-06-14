@@ -31,11 +31,11 @@ fun GlassmorphicContainer(
 ) {
     val isDark = isSystemInDarkTheme()
     
-    // Transparent fills matching exact spec (0.3f to 0.5f alpha)
+    // Transparent fills matching exact spec
     val resolvedBgColor = backgroundColor ?: if (isDark) {
-        CyberDarkSurface // Translucent obsidian/slate (0.2f to 0.3f)
+        CyberDarkGlassBackground 
     } else {
-        CyberLightSurface.copy(alpha = 0.45f) // Frosted silver-white glass (0.45f)
+        CyberLightGlassBackground 
     }
 
     // Precise refract highlight border gradient (1.dp)
@@ -52,9 +52,9 @@ fun GlassmorphicContainer(
         Brush.linearGradient(
             colors = listOf(
                 Color.White.copy(alpha = 0.65f),
-                CyberLightBorder.copy(alpha = 0.40f),
+                CyberLightGlassBorder.copy(alpha = 0.40f),
                 Color.White.copy(alpha = 0.25f),
-                CyberLightBorder.copy(alpha = 0.15f)
+                CyberLightGlassBorder.copy(alpha = 0.15f)
             )
         )
     }

@@ -1,438 +1,390 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.local.ChatDatabase
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatThread
+import com.example.data.model.UserProfile
 import com.example.data.network.InstagramScraper
 import com.example.data.network.SessionManager
 import com.example.data.repository.ChatRepository
+import com.example.security.AttachmentEngine
 import com.example.security.CryptoEngine
 import com.example.security.UiChatMessage
-import com.example.security.AttachmentEngine
-import kotlinx.coroutines.delay
+import com.facebook.AccessToken
+import com.facebook.CallbackManager
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.security.PrivateKey
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = ChatDatabase.getDatabase(application)
+
     private val sessionManager = SessionManager(application)
-    private val repository = ChatRepository(database.messageDao(), sessionManager)
+    private val repository = ChatRepository(sessionManager)
 
-    // User session state
-    var isAuthenticated by mutableStateOf(sessionManager.isAuthenticated())
+    // Facebook SDK CallbackManager (stored here so MainActivity can delegate onActivityResult)
+    val callbackManager: CallbackManager = CallbackManager.Factory.create()
+
+    // ── Auth state ──────────────────────────────────────────────────────────
+    var isAuthenticated by mutableStateOf(FirebaseAuth.getInstance().currentUser != null)
         private set
-    var currentUsername by mutableStateOf(sessionManager.getUsername())
+    var currentUserProfile by mutableStateOf<UserProfile?>(null)
         private set
-    var isSandboxMode by mutableStateOf(sessionManager.isSandboxMode())
+    var isSandboxMode by mutableStateOf(false)
+        private set
+    var isLoading by mutableStateOf(false)
+        private set
+    var loginError by mutableStateOf<String?>(null)
         private set
 
-    // Selected thread state
-    private val _activeThreadId = MutableStateFlow<String?>(null)
-    val activeThreadId: StateFlow<String?> = _activeThreadId.asStateFlow()
+    // ── Thread list state ────────────────────────────────────────────────────
+    private val _threads = MutableStateFlow<List<ChatThread>>(emptyList())
+    val threads: StateFlow<List<ChatThread>> = _threads.asStateFlow()
 
+    // ── Active thread & messages ─────────────────────────────────────────────
     private val _activeThread = MutableStateFlow<ChatThread?>(null)
     val activeThread: StateFlow<ChatThread?> = _activeThread.asStateFlow()
 
-    // Threads list
-    val threads: StateFlow<List<ChatThread>> = repository.threadsFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _messages = MutableStateFlow<List<UiChatMessage>>(emptyList())
+    val messages: StateFlow<List<UiChatMessage>> = _messages.asStateFlow()
 
-    // Messages list for selected thread, merged on-the-fly and processed through AttachmentEngine E2EE pipeline
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val currentMessages: StateFlow<List<UiChatMessage>> = combine(
-        _activeThreadId.flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getMessagesForThread(id)
-        },
-        _activeThread
-    ) { rawList, thread ->
-        val secret = thread?.sharedSecret ?: ""
-        AttachmentEngine.processRawMessages(getApplication(), rawList, secret)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    // ── User search state ─────────────────────────────────────────────────────
+    private val _searchResults = MutableStateFlow<List<UserProfile>>(emptyList())
+    val searchResults: StateFlow<List<UserProfile>> = _searchResults.asStateFlow()
+    var isSearching by mutableStateOf(false)
+        private set
 
-    // State bindings for Compose text boxes & toggles
+    // ── Chat input state ──────────────────────────────────────────────────────
     var stagedMessageText by mutableStateOf("")
     var encryptEnabled by mutableStateOf(true)
-    var sharedSecretInput by mutableStateOf("")
+
+    // ── Private key (loaded once per session) ─────────────────────────────────
+    private var myPrivateKey: PrivateKey? = null
+
+    // ── Listener jobs ─────────────────────────────────────────────────────────
+    private var threadListJob: Job? = null
+    private var messagesJob: Job? = null
 
     init {
-        // Pre-populate beautiful default threads to enable E2EE exploration out-of-the-box
-        viewModelScope.launch {
-            if (repository.threadsFlow.stateIn(viewModelScope).value.isEmpty()) {
-                // Thread 1: Secure Design Partner
-                repository.createThread(
-                    id = "alex_design",
-                    contactName = "Alex Rivera",
-                    contactUsername = "alex_design",
-                    profilePicUrl = "https://picsum.photos/seed/alex/150/150",
-                    sharedSecret = "crypt_secure_alex"
-                )
-                // Seeding initial conversation
-                repository.createMessage(
-                    threadId = "alex_design",
-                    senderId = "alex_design",
-                    rawText = "Please make sure E2EE is toggled. Here is my secret key: crypt_secure_alex",
-                    isSender = false,
-                    encryptMode = false
-                )
-                repository.createMessage(
-                    threadId = "alex_design",
-                    senderId = "alex_design",
-                    rawText = "Let's share secure design updates and reels privately!",
-                    isSender = false,
-                    encryptMode = false
-                )
+        if (isAuthenticated) {
+            initSession()
+        }
+    }
 
-                // Thread 2: Travel Influencer
-                repository.createThread(
-                    id = "sarah_adventures",
-                    contactName = "Sarah Chen",
-                    contactUsername = "sarah_adventures",
-                    profilePicUrl = "https://picsum.photos/seed/sarah/150/150",
-                    sharedSecret = "sarah_travels_2026"
-                )
-                repository.createMessage(
-                    threadId = "sarah_adventures",
-                    senderId = "sarah_adventures",
-                    rawText = "Hey! Check out this awesome travel reel I found!",
-                    isSender = false,
-                    encryptMode = false
-                )
-                repository.createMessage(
-                    threadId = "sarah_adventures",
-                    senderId = "sarah_adventures",
-                    rawText = "https://www.instagram.com/reel/C7-M7_nI9Z_/",
-                    isSender = false,
-                    encryptMode = false
-                )
+    // ── Session Lifecycle ─────────────────────────────────────────────────────
+
+    private fun initSession() {
+        // Load ECDH private key into memory
+        val keyPair = CryptoEngine.getOrCreateKeyPair(getApplication())
+        myPrivateKey = keyPair.private
+
+        // Load user profile
+        viewModelScope.launch {
+            currentUserProfile = sessionManager.getCurrentUserProfile()
+        }
+
+        // Start listening for threads
+        startThreadListener()
+    }
+
+    private fun startThreadListener() {
+        threadListJob?.cancel()
+        threadListJob = viewModelScope.launch {
+            repository.getThreadsFlow().collect { threads ->
+                _threads.value = threads
             }
         }
     }
 
-    fun selectThread(threadId: String?) {
-        _activeThreadId.value = threadId
+    // ── Facebook Login ────────────────────────────────────────────────────────
+
+    /**
+     * Called from [SessionScreen] after Facebook Login SDK returns a token.
+     */
+    fun handleFacebookLogin(accessToken: AccessToken) {
         viewModelScope.launch {
-            if (threadId != null) {
-                val thread = repository.getThreadById(threadId)
-                _activeThread.value = thread
-                sharedSecretInput = thread?.sharedSecret ?: ""
+            isLoading = true
+            loginError = null
+            try {
+                val profile = sessionManager.signInWithFacebook(accessToken)
+                if (profile != null) {
+                    currentUserProfile = profile
+                    isAuthenticated = true
+                    isSandboxMode = false
+                    initSession()
+                    Log.d("ViewModel", "Logged in as ${profile.displayName}")
+                } else {
+                    loginError = "Sign-in failed. Please try again."
+                }
+            } catch (e: Exception) {
+                loginError = e.message ?: "An unexpected error occurred."
+                Log.e("ViewModel", "Login error", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun setLoginError(message: String?) {
+        loginError = message
+    }
+
+    /** Activates offline sandbox mode for testing without real accounts. */
+    fun enableSandboxMode() {
+        isSandboxMode = true
+        isAuthenticated = true
+        currentUserProfile = UserProfile(
+            uid = "sandbox_user",
+            displayName = "Sandbox Developer",
+            photoUrl = "https://picsum.photos/seed/sandbox/150/150",
+            publicKey = ""
+        )
+        // Use local crypto for sandbox
+        val keyPair = CryptoEngine.getOrCreateKeyPair(getApplication())
+        myPrivateKey = keyPair.private
+
+        // Seed a demo sandbox thread
+        _threads.value = listOf(
+            ChatThread(
+                id = "sandbox_thread",
+                participants = listOf("sandbox_user", "bot_user"),
+                participantNames = mapOf(
+                    "sandbox_user" to "You",
+                    "bot_user" to "Sandbox Bot"
+                ),
+                participantPics = mapOf(
+                    "sandbox_user" to "https://picsum.photos/seed/me/150/150",
+                    "bot_user" to "https://picsum.photos/seed/bot/150/150"
+                ),
+                lastMessage = "Welcome to E2EE Sandbox 🔒",
+                lastMessageTime = System.currentTimeMillis()
+            )
+        )
+    }
+
+    fun logout() {
+        messagesJob?.cancel()
+        threadListJob?.cancel()
+        _threads.value = emptyList()
+        _messages.value = emptyList()
+        _activeThread.value = emptyList<ChatThread>().let { null }
+        currentUserProfile = null
+        myPrivateKey = null
+        isAuthenticated = false
+        isSandboxMode = false
+        CryptoEngine.clearKeyCache()
+        sessionManager.signOut()
+    }
+
+    // ── Thread Selection ──────────────────────────────────────────────────────
+
+    fun selectThread(thread: ChatThread?) {
+        messagesJob?.cancel()
+        _activeThread.value = thread
+        _messages.value = emptyList()
+
+        if (thread == null) return
+
+        messagesJob = viewModelScope.launch {
+            repository.getMessagesFlow(thread.id).collect { rawMessages ->
+                _messages.value = processMessages(rawMessages, thread)
+            }
+        }
+    }
+
+    /**
+     * Decrypts raw Firestore messages into [UiChatMessage] for display.
+     * Uses ECDH shared key derived from the remote user's public key.
+     */
+    private suspend fun processMessages(
+        rawMessages: List<ChatMessage>,
+        thread: ChatThread
+    ): List<UiChatMessage> {
+        val myUid = currentUserProfile?.uid ?: "sandbox_user"
+        val remoteUid = thread.getOtherParticipantId(myUid)
+
+        // Get the remote user's public key (for ECDH)
+        val remoteProfile = if (!isSandboxMode && remoteUid.isNotEmpty()) {
+            repository.getUserProfile(remoteUid)
+        } else null
+
+        val privateKey = myPrivateKey
+        val sharedKey = if (privateKey != null && remoteProfile?.publicKey?.isNotEmpty() == true) {
+            try {
+                CryptoEngine.getSharedKey(remoteUid, remoteProfile.publicKey, privateKey)
+            } catch (e: Exception) {
+                Log.e("ViewModel", "ECDH key derivation failed", e)
+                null
+            }
+        } else if (isSandboxMode) {
+            // Sandbox: use local key derivation
+            CryptoEngine.deriveKeyFromPassphrase("sandbox_key_256")
+        } else null
+
+        return rawMessages.map { msg ->
+            val decryptedText = when {
+                sharedKey != null && CryptoEngine.isEncrypted(msg.encryptedText) -> {
+                    CryptoEngine.decrypt(msg.encryptedText, sharedKey)
+                }
+                InstagramScraper.isInstagramUrl(msg.encryptedText) -> msg.encryptedText
+                else -> msg.encryptedText
+            }
+
+            val isError = decryptedText.startsWith("[Decryption Failed")
+
+            UiChatMessage(
+                id = msg.id,
+                threadId = msg.threadId,
+                senderId = msg.senderId,
+                text = decryptedText,
+                timestamp = msg.timestamp,
+                isEncrypted = CryptoEngine.isEncrypted(msg.encryptedText),
+                isSender = msg.isSender,
+                isScrapedMedia = msg.isScrapedMedia,
+                mediaImageUrl = msg.mediaImageUrl,
+                mediaVideoUrl = msg.mediaVideoUrl,
+                mediaCaption = msg.mediaCaption,
+                isDecryptionError = isError,
+                rawCipherPayload = if (CryptoEngine.isEncrypted(msg.encryptedText)) msg.encryptedText else ""
+            )
+        }
+    }
+
+    // ── Sending Messages ──────────────────────────────────────────────────────
+
+    fun sendMessage() {
+        val thread = _activeThread.value ?: return
+        val text = stagedMessageText.trim()
+        if (text.isEmpty()) return
+        stagedMessageText = ""
+
+        viewModelScope.launch {
+            val myUid = currentUserProfile?.uid ?: "sandbox_user"
+            val remoteUid = thread.getOtherParticipantId(myUid)
+
+            // Determine encryption key
+            val encryptedPayload = if (encryptEnabled && !InstagramScraper.isInstagramUrl(text)) {
+                val privateKey = myPrivateKey
+                val remoteProfile = if (!isSandboxMode) repository.getUserProfile(remoteUid) else null
+
+                when {
+                    isSandboxMode -> {
+                        val key = CryptoEngine.deriveKeyFromPassphrase("sandbox_key_256")
+                        CryptoEngine.encrypt(text, key)
+                    }
+                    privateKey != null && remoteProfile?.publicKey?.isNotEmpty() == true -> {
+                        val key = CryptoEngine.getSharedKey(remoteUid, remoteProfile.publicKey, privateKey)
+                        CryptoEngine.encrypt(text, key)
+                    }
+                    else -> text // No key available, send plain
+                }
             } else {
-                _activeThread.value = null
-                sharedSecretInput = ""
+                text // Instagram URLs or encryption disabled
             }
-        }
-    }
 
-    fun updateSharedSecret(newSecret: String) {
-        val threadId = _activeThreadId.value ?: return
-        sharedSecretInput = newSecret
-        viewModelScope.launch {
-            val thread = repository.getThreadById(threadId)
-            if (thread != null) {
-                val updatedThread = thread.copy(sharedSecret = newSecret)
-                // Use insert to replace existing config
-                database.messageDao().insertThread(updatedThread)
-                _activeThread.value = updatedThread
+            if (isSandboxMode) {
+                // Add to local sandbox state directly
+                val uiMsg = UiChatMessage(
+                    id = System.currentTimeMillis().toString(),
+                    threadId = thread.id,
+                    senderId = myUid,
+                    text = text,
+                    timestamp = System.currentTimeMillis(),
+                    isEncrypted = encryptEnabled,
+                    isSender = true,
+                    isScrapedMedia = false,
+                    mediaImageUrl = null,
+                    mediaVideoUrl = null,
+                    mediaCaption = null
+                )
+                _messages.value = _messages.value + uiMsg
+            } else {
+                repository.sendMessage(
+                    threadId = thread.id,
+                    encryptedText = encryptedPayload,
+                    senderDisplayName = currentUserProfile?.displayName ?: ""
+                )
             }
         }
     }
 
     fun handleIncomingShareUrl(url: String) {
         stagedMessageText = url
-        encryptEnabled = false // Keep media URLs plain to allow immediate scraping
+        encryptEnabled = false
     }
 
-    fun sendMessage() {
-        val threadId = _activeThreadId.value ?: return
-        val text = stagedMessageText.trim()
-        if (text.isEmpty()) return
+    // ── Attachment Sending ────────────────────────────────────────────────────
 
-        val isUrl = InstagramScraper.isInstagramUrl(text)
-        val encryptState = encryptEnabled && !isUrl // Don't encrypt links, only raw private texts
-
-        viewModelScope.launch {
-            val sentMsgId = repository.createMessage(
-                threadId = threadId,
-                senderId = "me",
-                rawText = text,
-                isSender = true,
-                encryptMode = encryptState
-            )
-            stagedMessageText = ""
-
-            // Trigger contact reply simulator to test end-to-end flow!
-            simulateContactReply(threadId, text, encryptState)
-        }
-    }
-
-    private fun simulateContactReply(threadId: String, userText: String, wasUserEncrypted: Boolean) {
-        viewModelScope.launch {
-            delay(1500) // Realistic conversational typing lag
-            
-            val thread = repository.getThreadById(threadId) ?: return@launch
-            val secret = thread.sharedSecret
-            
-            val replyText: String
-            val shouldEncrypt: Boolean
-
-            when {
-                sessionManager.isSandboxMode() -> {
-                    replyText = if (wasUserEncrypted) {
-                        "Local hardware KeyStore GCM ciphertext parsed cleanly! Safe and verified offline. Returning authenticated response."
-                    } else {
-                        "Offline sandbox echo received. Try ticking 'Encryption Active' to experience direct on-device hardware E2EE."
-                    }
-                    shouldEncrypt = wasUserEncrypted
-                }
-                userText.contains("instagram.com") -> {
-                    replyText = "Wow, that's an incredible post! Thanks for sharing this. Check this response video:"
-                    shouldEncrypt = false
-                    
-                    // Respond with text and then simulate a reel share
-                    repository.createMessage(
-                        threadId = threadId,
-                        senderId = threadId,
-                        rawText = replyText,
-                        isSender = false,
-                        encryptMode = false
-                    )
-                    
-                    delay(2000)
-                    repository.createMessage(
-                        threadId = threadId,
-                        senderId = threadId,
-                        rawText = "https://www.instagram.com/reel/C7-M7_nI9Z_/",
-                        isSender = false,
-                        encryptMode = false
-                    )
-                    return@launch
-                }
-                wasUserEncrypted -> {
-                    replyText = "Secure payload parsed! Decryption successful side-channel with key [$secret]. Here is my client-side E2EE response."
-                    shouldEncrypt = true
-                }
-                userText.lowercase().contains("hi") || userText.lowercase().contains("hello") -> {
-                    replyText = "Hello! Secure channel established. Let's communicate privately. Try ticking 'Encryption Active' to lock our chat."
-                    shouldEncrypt = false
-                }
-                else -> {
-                    replyText = "Message securely received. My cryptographic key is in lockstep with yours. Ready for more shares!"
-                    shouldEncrypt = encryptEnabled // Match user preference
-                }
-            }
-
-            repository.createMessage(
-                threadId = threadId,
-                senderId = threadId,
-                rawText = replyText,
-                isSender = false,
-                encryptMode = shouldEncrypt
-            )
-        }
-    }
-
-    fun saveSession(cookies: String, username: String) {
-        sessionManager.setSandboxMode(false)
-        isSandboxMode = false
-        sessionManager.saveCookies(cookies, username)
-        isAuthenticated = true
-        currentUsername = username
-    }
-
-    fun saveManualProtocolConfig(
-        username: String,
-        targetUserId: String,
-        sessionToken: String,
-        csrfToken: String,
-        userAgent: String
-    ) {
-        sessionManager.setSandboxMode(false)
-        isSandboxMode = false
-        sessionManager.saveManualSession(username, targetUserId, sessionToken, csrfToken, userAgent)
-        isAuthenticated = true
-        currentUsername = username
-    }
-
-    fun enableSandboxMode() {
-        sessionManager.setSandboxMode(true)
-        isSandboxMode = true
-        isAuthenticated = true
-        currentUsername = "sandbox_developer"
-
-        viewModelScope.launch {
-            val threadId = "sandbox_channel"
-            val existing = repository.getThreadById(threadId)
-            if (existing == null) {
-                repository.createThread(
-                    id = threadId,
-                    contactName = "Hardware Sandbox",
-                    contactUsername = "offline_sandbox",
-                    profilePicUrl = "https://picsum.photos/seed/offline_sandbox/150/150",
-                    sharedSecret = "sandbox_key_256"
-                )
-
-                // Seed some offline messages, including local keystore encryption and local mock attachment types
-                repository.createMessage(
-                    threadId = threadId,
-                    senderId = "offline_sandbox",
-                    rawText = "Welcome to the CipherGram closed hardware-backed sandbox environment! All operations are local here.",
-                    isSender = false,
-                    encryptMode = false
-                )
-
-                // Encrypted message using LocalCryptoEngine keystore!
-                val samplePlain = "This message is encrypted entirely on your device using KeyStore-backed AES-GCM 256-bit parameters."
-                val sampleCiphertext = com.example.security.LocalCryptoEngine.encrypt(samplePlain)
-                repository.createMessage(
-                    threadId = threadId,
-                    senderId = "offline_sandbox",
-                    rawText = sampleCiphertext,
-                    isSender = false,
-                    encryptMode = false
-                )
-
-                // Mock voice message cache URI
-                repository.createMessage(
-                    threadId = threadId,
-                    senderId = "offline_sandbox",
-                    rawText = "MOCK_VOICE:https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-                    isSender = false,
-                    encryptMode = false
-                )
-
-                // Mock static video looping stream (EXOPLAYER DEMO!)
-                repository.createMessage(
-                    threadId = threadId,
-                    senderId = "offline_sandbox",
-                    rawText = "MOCK_VIDEO:https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                    isSender = false,
-                    encryptMode = false
-                )
-                
-                repository.createMessage(
-                    threadId = threadId,
-                    senderId = "offline_sandbox",
-                    rawText = "Toggle 'Encryption Active' below to send messages with your Keystore's AES-GCM hardware key. Safe, offline, and instant.",
-                    isSender = false,
-                    encryptMode = false
-                )
-            }
-        }
-    }
-
-    fun logout() {
-        sessionManager.setSandboxMode(false)
-        isSandboxMode = false
-        sessionManager.clearSession()
-        isAuthenticated = false
-        currentUsername = "Guest User"
-    }
-
-    fun createCustomThread(username: String, name: String, secret: String) {
-        viewModelScope.launch {
-            val safeId = username.lowercase().replace(" ", "_").trim()
-            repository.createThread(
-                id = safeId,
-                contactName = name,
-                contactUsername = username,
-                profilePicUrl = "https://picsum.photos/seed/$safeId/150/150",
-                sharedSecret = secret
-            )
-            selectThread(safeId)
-        }
-    }
-
-    fun deleteCurrentThread() {
-        val threadId = _activeThreadId.value ?: return
-        viewModelScope.launch {
-            repository.deleteThread(threadId)
-            selectThread(null)
-        }
-    }
-
-    /**
-     * Slices high-resolution inputs, encrypts client-side under AES-GCM (256-bit) GCM payload,
-     * and sequentially inserts segments across text message fields safely.
-     */
     fun sendSecureAttachment(type: String, fileId: String, data: ByteArray) {
-        val threadId = _activeThreadId.value ?: return
         val thread = _activeThread.value ?: return
-        val secret = thread.sharedSecret
-        if (secret.isEmpty()) return
+        val myUid = currentUserProfile?.uid ?: return
+        val remoteUid = thread.getOtherParticipantId(myUid)
 
         viewModelScope.launch {
             try {
-                // 1. Encrypt binary files safely using GCM spec
-                val encrypted = AttachmentEngine.encryptBytes(data, secret)
-                // 2. Fragment payloads into transportable packet sequences
-                val packets = AttachmentEngine.sliceToChunkPackets(encrypted, fileId)
-                
-                // 3. Sequentially register packets inside Room Db
+                val privateKey = myPrivateKey ?: return@launch
+                val remoteProfile = repository.getUserProfile(remoteUid) ?: return@launch
+                val sharedKey = CryptoEngine.getSharedKey(remoteUid, remoteProfile.publicKey, privateKey)
+
+                // Encrypt attachment bytes
+                val encryptedBytes = AttachmentEngine.encryptBytes(data, sharedKey)
+                val packets = AttachmentEngine.sliceToChunkPackets(encryptedBytes, fileId)
+
                 for (packet in packets) {
-                    repository.createMessage(
-                        threadId = threadId,
-                        senderId = "me",
-                        rawText = packet,
-                        isSender = true,
-                        encryptMode = false // Pre-encrypted chunks
+                    repository.sendMessage(
+                        threadId = thread.id,
+                        encryptedText = packet,
+                        senderDisplayName = currentUserProfile?.displayName ?: ""
                     )
                 }
-
-                // Update text preview within active contacts thread
-                val displayLabel = when (type) {
-                    "img" -> "[🔒 E2EE Photo]"
-                    "voice" -> "[🔒 E2EE Voice Message]"
-                    "vid" -> "[🔒 E2EE Video]"
-                    else -> "[🔒 E2EE Media]"
-                }
-                database.messageDao().updateThreadLastMessage(threadId, displayLabel, System.currentTimeMillis())
-                
-                // Simulate side-channel confirmation
-                simulateAttachmentReply(threadId, type)
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "Failed to transmit encrypted attachment", e)
+                Log.e("ViewModel", "Attachment send failed", e)
             }
         }
     }
 
-    private fun simulateAttachmentReply(threadId: String, type: String) {
+    // ── User Discovery ────────────────────────────────────────────────────────
+
+    fun searchUsers(query: String) {
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
         viewModelScope.launch {
-            delay(2500)
-            val responseText = when (type) {
-                "img" -> "Image decrypted successfully! Checked AES-GCM authentication tags in step context."
-                "voice" -> "Audio file decoded from container and decrypted. Speech clarity is crystal clear."
-                "vid" -> "Video data received, reassembled, and successfully validated."
-                else -> "CipherGram chunk pipeline verified. Data Integrity OK!"
+            isSearching = true
+            _searchResults.value = repository.searchUsers(query)
+            isSearching = false
+        }
+    }
+
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+    }
+
+    /**
+     * Opens or creates a chat thread with [otherUser] and navigates to it.
+     * @return The thread ID.
+     */
+    suspend fun startOrOpenChat(otherUser: UserProfile): String {
+        return repository.getOrCreateThread(otherUser)
+    }
+
+    fun deleteThread(thread: ChatThread) {
+        viewModelScope.launch {
+            repository.deleteThread(thread.id)
+            if (_activeThread.value?.id == thread.id) {
+                selectThread(null)
             }
-            repository.createMessage(
-                threadId = threadId,
-                senderId = threadId,
-                rawText = responseText,
-                isSender = false,
-                encryptMode = encryptEnabled
-            )
         }
     }
 }

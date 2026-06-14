@@ -1,115 +1,113 @@
-# 🔐 CipherGram
+# CipherGram
 
-#### *An advanced client-side End-to-End Encrypted (E2EE) alternate chat shell built dynamically with Jetpack Compose for Android.*
+![CipherGram Cover](https://github.com/abdulhayykhan/CipherGram/assets/placeholder/cover.png)
 
-CipherGram is designed as an ultra-secure, offline-first chat client utilizing modern Android hardware-backed cryptography and modular sandboxing. It allows users to manage messaging threads securely, preview media inline using a modern glassmorphic interface, and utilize localized database persistence seamlessly.
+CipherGram is a cutting-edge Android messaging application that combines the aesthetics of **Cyber Tech Glassmorphism** with military-grade security. Built natively for Android using Kotlin and Jetpack Compose, CipherGram allows users to log in securely with their Meta (Facebook/Instagram) accounts and instantly begin end-to-end encrypted (E2EE) chats with friends. 
 
----
-
-## 🛠️ Key Architectural Features
-
-### 1. Local Cryptographic Storage Layer
-CipherGram takes security at rest seriously. Sensitive credentials, manual session variables (such as Access Tokens, User-Agent strings, and User IDs), or message strings can be encrypted on-device.
-* **Hardware-Backed Cryptography**: Configured with a dedicated `LocalCryptoEngine` that uses the official Java Security Cryptographic KeyStore (`AndroidKeyStore`).
-* **AES-GCM (256-bit) Parameters**: Operates standard AES-GCM encryption with `AES/GCM/NoPadding`, utilizing a 12-byte initialization vector (IV) and a 128-bit authentication tag size.
-* **EncryptedSharedPreferences Integration**: Standard configuration variables are stored with hardware cryptographic isolation to prevent memory or disk leakage.
-
-### 2. Client-Side E2EE Text-Tunneling Engine
-For end-to-end security, CipherGram features dynamic text packaging allowing encrypted payloads to safely transit chat pipelines:
-* **Zero Trust Transport**: Converts plain texts instantly inside the sender state wrapper into Base64 ciphertext prefixed with our signature cryptographic marker (`LENC:`).
-* **Decoupled Key Exchange Integration**: Eliminates downstream reliance on server-side capabilities, performing local decryption matching directly within our sandboxed attachment engine before render.
-
-### 3. Jetpack Media3 Inline Rendering
-The visual message history is enhanced with sleek media renderers:
-* **Glassmorphic Styling**: Visually dynamic list cards styled with rounded container shapes and Material 3 layouts.
-* **ExoPlayer Integration**: Employs deep Media3 `ExoPlayer` integration embedded through an `AndroidView` surface layout.
-* **Mute/Play Control Loops**: High-performance thread layout with tap gestures designed for mute/playback loop states.
+With an infrastructure powered by Google Firebase and a responsive, dynamic Light/Dark mode interface, CipherGram guarantees your messages remain strictly between you and your recipient.
 
 ---
 
-## 🚀 Automated CI/CD Workflow Documentation
+## 🚀 Key Features
 
-CipherGram utilizes an automated, highly secure DevOps pipeline configured via GitHub Actions (`.github/workflows/deploy-apk.yml`):
-
-### How the Pipeline Works
-* **Workflow Trigger**: The pipeline executes exclusively when a standard semantic versioning Git tag matching the pattern `v*.*.*` is pushed directly to the repository (e.g., `v1.0.0`).
-* **Clean runner Environment**: Runs the build on an isolated `ubuntu-latest` container.
-* **Java/Gradle Infrastructure**: Boots up **JDK 17** via the official `actions/setup-java` (Temurin distribution) with intelligent, built-in Gradle build-caching enabled.
-* **High-Security Keystore Decoding**: Safely extracts the base64-stored Keystore secret (`secrets.ANDROID_KEYSTORE`), decodes it gracefully within runtime memory, and stores it inside a temporary workspace path (`.signing/my-upload-key.jks`) for use by the compilation step.
-* **Release Artifact Creation**: Compiles a optimized, signed, aligned, and zip-aligned release `.apk` via `./gradlew assembleRelease` and `r0adkll/sign-android-release`.
-* **GitHub Release Deployment**: Deploys the release assets directly to GitHub Releases. The action generates automated release notes detailing changes since the prior tag release.
+* **End-to-End Encryption (E2EE)**: True on-device encryption using Elliptic Curve Diffie-Hellman (ECDH) key exchange and AES-256-GCM. Your private keys never leave your phone. Firebase only ever stores scrambled ciphertext.
+* **Meta Identity Integration**: Seamless Facebook Login handles user authentication, directly bridging to Firebase Auth.
+* **Cyber Tech Glassmorphism UI**: A gorgeous, state-of-the-art interface featuring dynamic pulsating borders, frosted glass panels, and cyber-neon accents that smoothly adapt to your device's Light or Dark mode.
+* **Real-time Synchronization**: Messages, user searches, and online statuses synchronize instantly using Firebase Cloud Firestore.
+* **Local Caching**: App preferences and user data are cached locally via Jetpack DataStore to minimize network requests.
+* **Media Rich**: Supports Instagram profile scraping and reel previews directly within the chat interface.
 
 ---
 
-## 📖 User Manual & Operator Guide
+## 📖 User Manual & Guide
 
-### 1. How to Securely Download and Install CipherGram
-1. Go to your GitHub repository's **Releases** tab.
-2. Download the verified and signed compilation asset: `CipherGram.apk`.
-3. Transfer the file to your Android device or build it using the stream preview.
-4. On your mobile device, open your File Manager application, select the downloaded `.apk` file, and enable "Install from Unknown Sources" if prompted to complete the side-loading process safely.
+Welcome to CipherGram! Here is everything you need to know to securely chat with your friends.
 
-### 2. Initial Setup & Onboarding Navigation
-1. **Interactive Config Panel**: Upon launching the app, you will be greeted by the secure configuration screen.
-2. **Standard vs. Advanced Config Mode**:
-   * **Standard Session Mode**: Open the **Automated Browser Sync** sheet to sign in securely to the official platform end points inside a sandboxed WebView, capturing session cookies automatically. To keep authentication pure, **no passwords** are ever logged; only approved auth keys are localized.
-   * **Manual Value Input**: Switch to manual config if you already have access parameters. Enter your *Access Token*, *User-Agent string*, and *User ID* into the masked, highly responsive input text fields.
-3. **Launch Sandbox Mode**: Toggle "Launch Sandbox" to immediately bypass network steps. This instantiates a mock layout populated with default cryptographic test streams, ideal for evaluating ExoPlayer media and E2EE.
+### 1. Installation & Login
+1. **Launch the App**: Open CipherGram on your Android device. You will be greeted by the cyber-tech login portal.
+2. **Facebook Authentication**: Tap the **"Login with Facebook"** button. This will redirect you to Meta's secure authorization page.
+3. **Approve Permissions**: Allow CipherGram access to your public profile and email. Once approved, you will be securely redirected back to the app and logged in automatically!
 
-### 3. Messaging and Media Interlocution
-* Tap on any chat room on the thread list dashboard.
-* Click the **Encryption Active** toggle in the text entry bar to enforce full KeyStore GCM ciphertext packaging.
-* Tap on audio waveform players or loop video playback blocks natively to verify the multimedia playback systems.
+### 2. Navigating the App
+Upon logging in, you will be presented with the **Thread List** (your inbox).
+* **Top Bar**: Displays your profile name and the secure encryption lock indicator.
+* **Thread List**: All of your active conversations. Threads are displayed with frosted-glass backgrounds. Tap on any conversation to enter the chat.
+* **Dark/Light Mode**: The app will automatically adapt to your phone's system theme. To change between the deep Obsidian Dark Mode and the frosted Silver Light Mode, toggle your phone's system settings.
 
----
+### 3. Starting a New Secure Chat
+1. Tap the **Floating Action Button (FAB)** (the bright, pulsating plus icon at the bottom right) to start a new chat.
+2. The **Search Screen** will open. Type the exact username of the friend you wish to chat with. *(Note: Your friend must have logged into CipherGram at least once to be searchable).*
+3. Tap on their name in the search results to generate a cryptographic tunnel and open a new chat thread!
 
-## 🔒 Secrets & Keystore Configuration Blueprint
-
-To enable automated release signing in GitHub Actions, you must generate a Java keystore and format it as a Base64 string to register as highly secure environment secrets:
-
-### 🛠️ Terminal Base64 Conversion
-Run the following standard console execution string on your terminal depending on your development platform:
-
-**macOS / Linux terminal**:
-```bash
-base64 -i my-upload-key.jks -o keystore-base64.txt
-```
-*Alternatively, using `base64` wrapping flags:*
-```bash
-base64 -w 0 my-upload-key.jks > keystore-base64.txt
-```
-
-**PowerShell (Windows)**:
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("my-upload-key.jks")) > keystore-base64.txt
-```
-
-### GitHub Secrets Registration Matrix
-Copy the contents of `keystore-base64.txt` and populate your GitHub repository secrets securely under:
-
-| GitHub Secret Key | Description |
-| ------------------ | ----------- |
-| `ANDROID_KEYSTORE` | Paste the exact Base64 string from `keystore-base64.txt`. |
-| `KEY_ALIAS` | The alias given to your signing key during keystore creation. |
-| `KEYSTORE_PASSWORD` | The primary master password for your `.jks` file. |
-| `KEY_PASSWORD` | The password configured for the key itself inside your keystore. |
+### 4. Sending Encrypted Messages
+1. In the **Chat Screen**, type your message in the bottom text field. 
+2. **Encryption in Action**: As soon as you hit "Send," the app generates a unique symmetric AES key, encrypts the message locally on your CPU, and sends the scrambled ciphertext to the cloud. 
+3. **Decryption**: The recipient's phone will automatically pull the ciphertext and decrypt it locally using their private key. No server or middleman can ever read your messages!
 
 ---
 
-## ⚙️ Manual Action Verification Checklist
+## 🛠 Developer Setup & Deployment Guide
 
-To ensure the automated setup can write release artifacts without authentication bottlenecks:
-1. Navigate to **Settings** > **Actions** > **General** inside the repository browser interface.
-2. Scroll to the **Workflow permissions** configuration block.
-3. Explicitly toggle the radio button to **"Read and write permissions"**.
-4. Check **"Allow GitHub Actions to create and approve pull requests"** and select **Save**.
+Want to build and compile this app from source? Follow these steps exactly:
+
+### Prerequisites
+* **Android Studio Ladybug** (or newer)
+* **JDK 11+**
+* An active **Google Account** (for Firebase)
+* A **Meta Developer Account** (for Facebook Login)
+
+### Phase 1: Android Studio Setup
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/abdulhayykhan/CipherGram.git
+   ```
+2. Open the project in Android Studio.
+3. Allow Gradle to sync. If it fails, ensure your Android Gradle Plugin (AGP) version matches your Gradle distribution version (AGP `8.8.0` is recommended for Gradle `9.0.0`).
+4. Generate your local debug `SHA-1` Key:
+   * Open the Gradle panel on the right side of Android Studio.
+   * Click the "Execute Gradle Task" (Elephant) icon.
+   * Run the command: `signingReport`. Copy the `SHA1` output.
+
+### Phase 2: Firebase Configuration
+1. Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+2. Add an Android App with the package name `com.aistudio.ciphergram.xtzqjp`.
+3. Enter the `SHA-1` key you generated in Phase 1.
+4. Download the `google-services.json` file and place it in the `app/` directory of the project.
+5. In Firebase, go to **Build > Authentication > Sign-in method** and enable **Facebook**.
+6. You will need your Meta App ID and App Secret (see Phase 3 below).
+7. Copy the **OAuth Redirect URI** provided by Firebase at the bottom of the Facebook setup box.
+
+### Phase 3: Meta for Developers (Facebook Login)
+1. Go to [Meta for Developers](https://developers.facebook.com/) and create a new App (Type: Consumer or None).
+2. Get your **App ID** and **App Secret** (from App Settings > Basic) and paste them into Firebase.
+3. Set up **Facebook Login** under "Use Cases" or "Products".
+4. Paste the **OAuth Redirect URI** (from Firebase) into the **Valid OAuth Redirect URIs** box and save.
+5. Go to **App Settings > Advanced** and copy your **Client Token**.
+6. Open `app/src/main/res/values/strings.xml` in Android Studio and inject your keys:
+   ```xml
+   <string name="facebook_app_id">YOUR_APP_ID</string>
+   <string name="fb_login_protocol_scheme">fbYOUR_APP_ID</string>
+   <string name="facebook_client_token">YOUR_CLIENT_TOKEN</string>
+   ```
+
+### Phase 4: Firestore Setup
+1. In Firebase, go to **Firestore Database** and create a database.
+2. Start in **Test Mode** (or configure secure rules that only allow authenticated users to read/write their own thread documents).
+
+### Phase 5: Build & Run
+1. With all credentials injected, click the **Run** (Play) button in Android Studio.
+2. The app will compile and launch on your connected device or emulator!
 
 ---
 
-## 📄 License
+## 📜 Architecture & Security Tech Stack
 
-This project is open-source and available for educational and commercial use under the MIT License.
+* **Language**: Kotlin
+* **UI Toolkit**: Jetpack Compose (Material 3)
+* **Cryptography**: `javax.crypto` (AES/GCM/NoPadding, ECDH P-256)
+* **Backend Cloud**: Firebase Authentication, Cloud Firestore
+* **Local Storage**: Jetpack DataStore (Preferences)
+* **Image Loading**: Coil Compose
+* **Asynchronous Operations**: Kotlin Coroutines & Flow
 
----
-
-**Made with ❤️ by [Abdul Hayy Khan](https://www.linkedin.com/in/abdulhayykhan/)**
+*CipherGram is built with an absolute commitment to privacy. The code ensures that plaintext payloads are never temporarily cached to disk before encryption, and ephemeral keys are wiped from memory immediately after decryption.*

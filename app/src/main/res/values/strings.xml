@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">CipherGram</string>
+
+    <!-- Facebook SDK Configuration -->
+    <!-- App ID: 1051512734067543 -->
+    <string name="facebook_app_id">1051512734067543</string>
+    <string name="fb_login_protocol_scheme">fb1051512734067543</string>
+    <string name="facebook_client_token">9057f082f5a3f529dcfc8c4a0e1deb51</string>
 </resources>

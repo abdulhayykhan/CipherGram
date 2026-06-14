@@ -11,7 +11,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -109,16 +108,13 @@ object AttachmentEngine {
     }
 
     /**
-     * Encrypts the raw byte stream with AES-GCM client-side
+     * Encrypts the raw byte stream with AES-GCM using a [SecretKeySpec] derived from ECDH.
      */
-    fun encryptBytes(data: ByteArray, secret: String): ByteArray {
-        val key = CryptoEngine.deriveKey(secret)
+    fun encryptBytes(data: ByteArray, key: SecretKeySpec): ByteArray {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, key) // AES-GCM automatically populates random 12-byte IV
-
-        val iv = cipher.iv ?: ByteArray(IV_LENGTH_BYTES).apply { SecureRandom().nextBytes(this) }
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val iv = cipher.iv
         val ciphertextBytes = cipher.doFinal(data)
-
         val combined = ByteArray(iv.size + ciphertextBytes.size)
         System.arraycopy(iv, 0, combined, 0, iv.size)
         System.arraycopy(ciphertextBytes, 0, combined, iv.size, ciphertextBytes.size)
@@ -126,16 +122,13 @@ object AttachmentEngine {
     }
 
     /**
-     * Decrypts the raw unified GCM buffer
+     * Decrypts the raw unified GCM buffer using a [SecretKeySpec] derived from ECDH.
      */
-    fun decryptBytes(combined: ByteArray, secret: String): ByteArray {
-        val key = CryptoEngine.deriveKey(secret)
+    fun decryptBytes(combined: ByteArray, key: SecretKeySpec): ByteArray {
         val iv = ByteArray(IV_LENGTH_BYTES)
         System.arraycopy(combined, 0, iv, 0, iv.size)
-
         val ciphertextBytes = ByteArray(combined.size - iv.size)
         System.arraycopy(combined, iv.size, ciphertextBytes, 0, ciphertextBytes.size)
-
         val cipher = Cipher.getInstance(TRANSFORMATION)
         val spec = GCMParameterSpec(TAG_LENGTH_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, key, spec)
@@ -195,35 +188,32 @@ object AttachmentEngine {
     fun processRawMessages(
         context: Context,
         rawList: List<ChatMessage>,
-        sharedSecret: String
+        sharedKey: SecretKeySpec?
     ): List<UiChatMessage> {
         val result = mutableListOf<UiChatMessage>()
         
         // Standard text messages
-        val nonChunkMessages = rawList.filter { !isChunkMessage(it.text) }
+        val nonChunkMessages = rawList.filter { !isChunkMessage(it.encryptedText) }
         for (msg in nonChunkMessages) {
-            val textToParse = msg.text
+            val textToParse = msg.encryptedText
             val isMockVoice = textToParse.startsWith("MOCK_VOICE:")
             val isMockVideo = textToParse.startsWith("MOCK_VIDEO:")
             
             val isLocalEncrypted = LocalCryptoEngine.isEncrypted(textToParse)
-            val isEncryptedMsg = msg.isEncrypted || CryptoEngine.isEncrypted(textToParse) || isLocalEncrypted
-            val parsedText = if (isLocalEncrypted) {
-                LocalCryptoEngine.decrypt(textToParse)
-            } else if (isMockVoice) {
-                "Voice Note (Local Sandbox Cache)"
-            } else if (isMockVideo) {
-                "Video Message (Local Sandbox Video)"
-            } else if (isEncryptedMsg) {
-                CryptoEngine.decrypt(textToParse, sharedSecret)
-            } else {
-                textToParse
+            val isEncryptedMsg = CryptoEngine.isEncrypted(textToParse) || isLocalEncrypted
+            val parsedText = when {
+                isLocalEncrypted -> LocalCryptoEngine.decrypt(textToParse)
+                isMockVoice -> "Voice Note (Local Sandbox Cache)"
+                isMockVideo -> "Video Message (Local Sandbox Video)"
+                sharedKey != null && CryptoEngine.isEncrypted(textToParse) ->
+                    CryptoEngine.decrypt(textToParse, sharedKey)
+                else -> textToParse
             }
-            val isError = !isMockVoice && !isMockVideo && (parsedText.contains("[Decryption Failed:") || parsedText.contains("[Decryption Failed]"))
+            val isError = !isMockVoice && !isMockVideo && (parsedText.contains("[Decryption Failed") || parsedText.startsWith("[Error"))
             
             result.add(
                 UiChatMessage(
-                    id = msg.id.toString(),
+                    id = msg.id,
                     threadId = msg.threadId,
                     senderId = msg.senderId,
                     text = parsedText,
@@ -245,9 +235,9 @@ object AttachmentEngine {
         }
 
         // Segmented Chunks
-        val chunkMessages = rawList.filter { isChunkMessage(it.text) }
+        val chunkMessages = rawList.filter { isChunkMessage(it.encryptedText) }
         val parsedChunksGrouped = chunkMessages.mapNotNull { msg ->
-            val parsed = parseChunk(msg.text)
+            val parsed = parseChunk(msg.encryptedText)
             if (parsed != null) msg to parsed else null
         }.groupBy { it.second.id }
 
@@ -285,7 +275,7 @@ object AttachmentEngine {
                         }
                         
                         // Decrypt binary AES stream
-                        val decryptedBytes = decryptBytes(stream.toByteArray(), sharedSecret)
+                        val decryptedBytes = if (sharedKey != null) decryptBytes(stream.toByteArray(), sharedKey) else ByteArray(0)
                         
                         // Dump uncompressed binary values inside local storage
                         FileOutputStream(cachedFile).use { fos ->

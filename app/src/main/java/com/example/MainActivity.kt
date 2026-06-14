@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavType
@@ -18,7 +20,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.data.network.InstagramScraper
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.SessionScreen
 import com.example.ui.screens.ThreadListScreen
@@ -33,15 +34,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize coordinates viewmodel
         viewModel = ViewModelProvider(this)[ChatViewModel::class.java]
-
-        // Handle initial external link sharing if opened via share sheet
         handleIncomingIntent(intent)
 
         setContent {
             MyApplicationTheme {
                 val navController = rememberNavController()
+                val threads by viewModel.threads.collectAsState()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Surface(
@@ -51,21 +50,21 @@ class MainActivity : ComponentActivity() {
                     ) {
                         NavHost(
                             navController = navController,
-                            startDestination = "session"
+                            startDestination = if (viewModel.isAuthenticated) "threads" else "session"
                         ) {
-                            // 1. Session Login Config Route
+                            // 1. Login Screen
                             composable("session") {
                                 SessionScreen(
                                     viewModel = viewModel,
                                     onNavigateToChats = {
                                         navController.navigate("threads") {
-                                            popUpTo("session") { inclusive = false }
+                                            popUpTo("session") { inclusive = true }
                                         }
                                     }
                                 )
                             }
 
-                            // 2. Chat Contacts Threads Picker Route
+                            // 2. Thread list
                             composable("threads") {
                                 ThreadListScreen(
                                     viewModel = viewModel,
@@ -73,12 +72,14 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("chat/$id")
                                     },
                                     onNavigateToSession = {
-                                        navController.navigate("session")
+                                        navController.navigate("session") {
+                                            popUpTo("threads") { inclusive = true }
+                                        }
                                     }
                                 )
                             }
 
-                            // 3. Main Chat thread Stream Route
+                            // 3. Chat screen
                             composable(
                                 route = "chat/{threadId}",
                                 arguments = listOf(
@@ -86,10 +87,11 @@ class MainActivity : ComponentActivity() {
                                 )
                             ) { backStackEntry ->
                                 val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
-                                
-                                // Re-sync active selection (fallback safe)
+
+                                // Re-select thread by ID when navigating back via deep link
                                 LaunchedEffect(threadId) {
-                                    viewModel.selectThread(threadId)
+                                    val thread = threads.find { it.id == threadId }
+                                    if (thread != null) viewModel.selectThread(thread)
                                 }
 
                                 ChatScreen(
@@ -107,6 +109,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Delegates Facebook Login activity results to the ViewModel's CallbackManager.
+     * Required for the Facebook Login SDK to process OAuth responses.
+     */
+    @Deprecated("Required for Facebook SDK")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        viewModel.callbackManager.onActivityResult(requestCode, resultCode, data)
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -114,24 +126,19 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Intercepts and parses text payload shared via standard Android Share Sheets (ACTION_SEND).
+     * Handles text shared to CipherGram via the system share sheet.
+     * Supports sharing Instagram URLs directly into the chat input.
      */
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
         val action = intent.action
         val type = intent.type
 
-        if (Intent.ACTION_SEND == action && type != null) {
-            if ("text/plain" == type) {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-                if (sharedText.isNotEmpty()) {
-                    viewModel.stagedMessageText = sharedText
-                    Toast.makeText(
-                        this, 
-                        "Shared Content Loaded into Chat Box!", 
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+        if (Intent.ACTION_SEND == action && type != null && "text/plain" == type) {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+            if (sharedText.isNotEmpty()) {
+                viewModel.handleIncomingShareUrl(sharedText)
+                Toast.makeText(this, "Content loaded into chat!", Toast.LENGTH_SHORT).show()
             }
         }
     }

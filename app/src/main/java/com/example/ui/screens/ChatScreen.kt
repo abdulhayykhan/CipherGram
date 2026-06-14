@@ -63,13 +63,14 @@ fun ChatScreen(
     modifier: Modifier = Modifier
 ) {
     val activeThread by viewModel.activeThread.collectAsState()
-    val messages by viewModel.currentMessages.collectAsState()
+    val messages by viewModel.messages.collectAsState()
+    val myUid = viewModel.currentUserProfile?.uid ?: "sandbox_user"
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    var showKeyEditor by remember { mutableStateOf(false) }
+    var showE2EEInfo by remember { mutableStateOf(false) }
 
     // Voice recording infrastructure
     val audioRecorder = remember { AudioRecorder(context) }
@@ -150,19 +151,29 @@ fun ChatScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
                             ) {
-                                AsyncImage(
-                                    model = thread.profilePicUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
+                                val pic = thread.getContactPic(myUid)
+                                if (pic.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = pic,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Text(
+                                        thread.getContactName(myUid).take(1).uppercase(),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = thread.contactName,
+                                    text = thread.getContactName(myUid),
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
@@ -172,14 +183,14 @@ fun ChatScreen(
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = Color(0xFF10B981),
                                         modifier = Modifier.size(10.dp)
                                     )
                                     Spacer(modifier = Modifier.width(2.dp))
                                     Text(
-                                        text = "key: ${thread.sharedSecret}",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        text = "ECDH E2EE · Auto Key Exchange",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF10B981).copy(alpha = 0.9f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -190,19 +201,19 @@ fun ChatScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { showKeyEditor = true },
+                        onClick = { showE2EEInfo = true },
                         modifier = Modifier.testTag("chat_settings_button")
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Manage Shared Key", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Info, contentDescription = "E2EE Info", tint = Color(0xFF10B981))
                     }
                     IconButton(
                         onClick = {
-                            viewModel.deleteCurrentThread()
+                            activeThread?.let { viewModel.deleteThread(it) }
                             onNavigateBack()
                         },
                         modifier = Modifier.testTag("delete_chat_button")
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Discard Chat Thread")
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Chat")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -273,23 +284,26 @@ fun ChatScreen(
             }
         }
 
-        if (showKeyEditor) {
-            KeyEditorDialog(
-                currentSecret = viewModel.sharedSecretInput,
-                onDismiss = { 
-                    showKeyEditor = false 
-                    focusManager.clearFocus()
-                },
-                onSave = {
-                    viewModel.updateSharedSecret(it)
-                    showKeyEditor = false
-                    focusManager.clearFocus()
-                    coroutineScope.launch {
-                        delay(200)
-                        if (messages.isNotEmpty()) {
-                            listState.animateScrollToItem(messages.size - 1)
-                        }
+        if (showE2EEInfo) {
+            AlertDialog(
+                onDismissRequest = { showE2EEInfo = false },
+                icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF10B981)) },
+                title = { Text("End-to-End Encryption Active") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "This chat uses ECDH P-256 key exchange + AES-256-GCM encryption.",
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            "Your shared encryption key was automatically derived from both users' EC public keys. CipherGram cannot read your messages.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                },
+                confirmButton = {
+                    Button(onClick = { showE2EEInfo = false }) { Text("Got it") }
                 }
             )
         }
@@ -318,15 +332,17 @@ fun MessageBubble(
         label = "glow_alpha"
     )
 
+    val safeGreen = if (isDark) com.example.ui.theme.PulsatingGreen else com.example.ui.theme.PulsatingGreenDarker
+
     // Bubble custom background translucency
     val bubbleColor = if (isDecryptedAndSecure) {
-        if (isDark) Color(0x2210B981) else Color(0x3310B981) // light translucent premium green backing
+        if (isDark) safeGreen.copy(alpha = 0.22f) else safeGreen.copy(alpha = 0.15f) // light translucent premium green backing
     } else if (message.isDecryptionError) {
         if (isDark) Color(0x38EF5350) else Color(0x2EF55350) // warning tint backing
     } else if (message.isSender) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.25f)
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
     }
 
     val textColor = if (message.isSender) {
@@ -339,9 +355,9 @@ fun MessageBubble(
     val borderBrush = if (isDecryptedAndSecure) {
         Brush.linearGradient(
             colors = listOf(
-                com.example.ui.theme.PulsatingGreen.copy(alpha = glowAlpha),
-                com.example.ui.theme.ElectricCyan.copy(alpha = 0.4f),
-                com.example.ui.theme.PulsatingGreen.copy(alpha = glowAlpha * 0.4f)
+                safeGreen.copy(alpha = glowAlpha),
+                com.example.ui.theme.ElectricCyan.copy(alpha = if (isDark) 0.4f else 0.2f),
+                safeGreen.copy(alpha = glowAlpha * 0.4f)
             )
         )
     } else if (message.isDecryptionError) {
@@ -415,7 +431,7 @@ fun MessageBubble(
                                 text = "SECURE / DECRYPTED",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = com.example.ui.theme.PulsatingGreen,
+                                color = safeGreen,
                                 letterSpacing = 1.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -529,26 +545,26 @@ fun MessageBubble(
                         )
                     }
 
-                    // Expandable Ciphertext visualizer
                     AnimatedVisibility(visible = revealCiphertext) {
                         Column(
                             modifier = Modifier
                                 .padding(top = 8.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                                 .padding(8.dp)
                         ) {
                             Text(
                                 text = "RAW CIPHER PAYLOAD:",
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = message.rawCipherPayload.ifEmpty { "[No Cipher Payload / Local Attachment]" },
                                 fontSize = 10.sp,
-                                color = Color(0xFFA5D6A7),
+                                color = safeGreen.copy(alpha = 0.8f),
                                 fontFamily = FontFamily.Monospace,
                                 lineHeight = 12.sp
                             )
@@ -585,6 +601,9 @@ fun ChatBottomInputBar(
     onCancelRecord: () -> Unit,
     onPickMedia: () -> Unit
 ) {
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val safeGreen = if (isDark) com.example.ui.theme.PulsatingGreen else com.example.ui.theme.PulsatingGreenDarker
+
     GlassmorphicContainer(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         cornerRadius = 24.dp,
@@ -605,7 +624,7 @@ fun ChatBottomInputBar(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = if (encryptEnabled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.secondary,
+                        tint = if (encryptEnabled) safeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -613,7 +632,7 @@ fun ChatBottomInputBar(
                         text = if (encryptEnabled) "E2EE ACTIVE (AES-GCM)" else "E2EE INACTIVE (PLAIN)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (encryptEnabled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.secondary
+                        color = if (encryptEnabled) safeGreen else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -670,7 +689,7 @@ fun ChatBottomInputBar(
                             Box(
                                 modifier = Modifier
                                     .size(16.dp)
-                                    .background(Color(0xFF4CAF50), RoundedCornerShape(2.dp))
+                                    .background(safeGreen, RoundedCornerShape(2.dp))
                             )
                         }
                     }
