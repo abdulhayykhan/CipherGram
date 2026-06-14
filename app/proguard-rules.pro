@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep all project classes to prevent ClassNotFoundException in Release mode
+-keep class com.example.** { *; }
+
+# Keep annotations for Moshi and Firebase serialization
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepclassmembers class ** {
+    @com.squareup.moshi.Json *;
+}
