@@ -17,6 +17,7 @@ android {
     targetSdk = 35
     versionCode = 1
     versionName = "1.0"
+    multiDexEnabled = true
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -71,6 +72,7 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
   implementation(libs.androidx.navigation.compose)
+  implementation("androidx.multidex:multidex:2.0.1")
 
   // Compose UI
   implementation(libs.androidx.compose.material.icons.core)
