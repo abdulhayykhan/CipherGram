@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.aistudio.ciphergram.xtzqjp"
   compileSdk = 35
 
   defaultConfig {
