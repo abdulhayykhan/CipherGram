@@ -111,3 +111,13 @@ Want to build and compile this app from source? Follow these steps exactly:
 * **Asynchronous Operations**: Kotlin Coroutines & Flow
 
 *CipherGram is built with an absolute commitment to privacy. The code ensures that plaintext payloads are never temporarily cached to disk before encryption, and ephemeral keys are wiped from memory immediately after decryption.*
+
+---
+
+## 📄 License
+
+This project is open-source and available for educational and commercial use under the MIT License.
+
+---
+
+**Made with ❤️ by [Abdul Hayy Khan](https://www.linkedin.com/in/abdulhayykhan/)**
