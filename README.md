@@ -1,7 +1,5 @@
 # CipherGram
 
-![CipherGram Cover](https://github.com/abdulhayykhan/CipherGram/assets/placeholder/cover.png)
-
 CipherGram is a cutting-edge Android messaging application that combines the aesthetics of **Cyber Tech Glassmorphism** with military-grade security. Built natively for Android using Kotlin and Jetpack Compose, CipherGram allows users to log in securely with their Meta (Facebook/Instagram) accounts and instantly begin end-to-end encrypted (E2EE) chats with friends. 
 
 With an infrastructure powered by Google Firebase and a responsive, dynamic Light/Dark mode interface, CipherGram guarantees your messages remain strictly between you and your recipient.
