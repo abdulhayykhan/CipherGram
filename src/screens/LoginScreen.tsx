@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
-import auth from '@react-native-firebase/auth';
+import auth, { FacebookAuthProvider } from '@react-native-firebase/auth';
 
 export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function LoginScreen({ navigation }: any) {
       }
 
       // Create a Firebase credential with the AccessToken
-      const facebookCredential = auth.FacebookAuthProvider.credential(data.accessToken);
+      const facebookCredential = FacebookAuthProvider.credential(data.accessToken);
 
       // Sign-in the user with the credential
       await auth().signInWithCredential(facebookCredential);
