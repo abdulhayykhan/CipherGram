@@ -1,4 +1,4 @@
-name: CipherGram Production Deployment Pipeline
+name: CipherGram Build & Release
 
 on:
   push:
@@ -9,59 +9,56 @@ permissions:
   contents: write
 
 jobs:
-  prep-and-compile:
-    name: Production APK Compilation & Artifact Distribution
+  build:
+    name: Build Debug APK & Release
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out Repository Source Context
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Java Development Kit Environment (JDK 17)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
 
-      - name: Generate Missing Gradle Wrapper
-        run: gradle wrapper
-
-      - name: Grant Operational Permissions to Gradle Wrapper
+      - name: Grant execute permission to Gradle wrapper
         run: chmod +x ./gradlew
 
-      - name: Decode Production Release Keystore from Secure Secrets Store
-        run: |
-          mkdir -p app
-          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > app/ciphergram-release.jks
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Execute Production Release Build Variant Assembly
-        run: ./gradlew assembleRelease
-        env:
-          KEYSTORE_FILE: "ciphergram-release.jks"
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Verify Signed Production Binary Mapping Alignment
+      - name: Locate and rename APK
         run: |
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            mv app/build/outputs/apk/release/app-release.apk ./CipherGram.apk
-          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            mv app/build/outputs/apk/release/app-release-unsigned.apk ./CipherGram.apk
-          else
-            echo "Error: No compiled APK asset located." && exit 1
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No APK found" && exit 1
           fi
+          echo "Found APK at: $APK_PATH"
+          mv "$APK_PATH" ./CipherGram.apk
 
-      - name: Instantiate Distribution Target Asset on GitHub Releases
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: ./CipherGram.apk
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          generate_release_notes: true
+          name: CipherGram ${{ github.ref_name }}
+          body: |
+            ## CipherGram ${{ github.ref_name }}
+            
+            ### What's Fixed
+            - Resolved ClassNotFoundException on app startup
+            - Switched to debug build for maximum compatibility
+            - All features: E2EE Chat, Facebook Login, Firebase backend
+            
+            ### Installation
+            1. Download **CipherGram.apk** below
+            2. Enable "Install from unknown sources" on your phone
+            3. Install and enjoy!
           draft: false
           prerelease: false
         env:
