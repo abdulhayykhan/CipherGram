@@ -1,67 +1,52 @@
-name: CipherGram Build & Release
+name: Build Debug APK & Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
-
-permissions:
-  contents: write
+    branches:
+      - main
 
 jobs:
   build:
     name: Build Debug APK & Release
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Grant execute permission to Gradle wrapper
-        run: chmod +x ./gradlew
-
-      - name: Clean previous build artifacts
-        run: ./gradlew clean --no-daemon --no-build-cache
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --no-build-cache --stacktrace
+        run: cd android && ./gradlew assembleDebug --no-daemon
 
-      - name: Locate and rename APK
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          if [ -z "$APK_PATH" ]; then
-            echo "ERROR: No APK found" && exit 1
-          fi
-          echo "Found APK at: $APK_PATH"
-          mv "$APK_PATH" ./CipherGram.apk
+      - name: Auto-increment Version Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
 
-      - name: Upload to GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./CipherGram.apk
-          tag_name: ${{ github.ref_name }}
-          name: CipherGram ${{ github.ref_name }}
-          body: |
-            ## CipherGram ${{ github.ref_name }}
-            
-            ### What's Fixed
-            - Resolved ClassNotFoundException on app startup
-            - Switched to debug build for maximum compatibility
-            - All features: E2EE Chat, Facebook Login, Firebase backend
-            
-            ### Installation
-            1. Download **CipherGram.apk** below
-            2. Enable "Install from unknown sources" on your phone
-            3. Install and enjoy!
-          draft: false
-          prerelease: false
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: "CipherGram React Native Release ${{ steps.tag_version.outputs.new_version }}"
+          files: android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
