@@ -12,7 +12,7 @@ export default function LoginScreen({ navigation }: any) {
       setLoading(true);
       setError(null);
       // Attempt login with permissions
-      const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+      const result = await LoginManager.logInWithPermissions(['public_profile']);
 
       if (result.isCancelled) {
         throw new Error('User cancelled the login process');
