@@ -34,8 +34,21 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Bundle JavaScript for Android
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
       - name: Build Debug APK
         run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/CipherGram.apk
 
       - name: Auto-increment Version Tag
         id: tag_version
@@ -49,6 +62,6 @@ jobs:
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
           name: "CipherGram React Native Release ${{ steps.tag_version.outputs.new_version }}"
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/CipherGram.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
