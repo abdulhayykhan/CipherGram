@@ -24,13 +24,15 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Grant execute permission to Gradle wrapper
         run: chmod +x ./gradlew
 
+      - name: Clean previous build artifacts
+        run: ./gradlew clean --no-daemon --no-build-cache
+
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --no-build-cache --stacktrace
 
       - name: Locate and rename APK
         run: |
