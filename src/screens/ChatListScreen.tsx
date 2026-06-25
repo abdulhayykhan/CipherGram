@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { firebaseAuth, firebaseFirestore } from '../services/firebase';
 
 export default function ChatListScreen({ navigation }: any) {
   const [threads, setThreads] = useState<any[]>([]);
   const [searchEmail, setSearchEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const user = firebaseAuth().currentUser;
 
   useEffect(() => {
@@ -26,21 +28,44 @@ export default function ChatListScreen({ navigation }: any) {
   }, [user]);
 
   const createOrOpenThread = async () => {
-    if (!searchEmail.trim() || !user) return;
+    setError('');
     
-    // Find user by email (in a real app, you'd use a Cloud Function or distinct users collection)
-    // For simplicity, we just use the email as the other participant ID if they don't exist
-    const threadsRef = firebaseFirestore().collection('threads');
+    const email = searchEmail.trim();
+    if (!email) {
+      setError('Please enter an email address.');
+      return;
+    }
     
-    // Simplistic thread creation
-    const newThread = {
-      participants: [user.uid, searchEmail.trim()],
-      lastMessage: '',
-      lastMessageTime: firebaseFirestore.FieldValue.serverTimestamp(),
-    };
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     
-    const docRef = await threadsRef.add(newThread);
-    navigation.navigate('Chat', { threadId: docRef.id, threadName: searchEmail.trim() });
+    if (!user) {
+      setError('You must be logged in to start a chat.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const threadsRef = firebaseFirestore().collection('threads');
+      const newThread = {
+        participants: [user.uid, email],
+        lastMessage: '',
+        lastMessageTime: firebaseFirestore.FieldValue.serverTimestamp(),
+      };
+      
+      const docRef = await threadsRef.add(newThread);
+      setSearchEmail('');
+      navigation.navigate('Chat', { threadId: docRef.id, threadName: email });
+    } catch (err: any) {
+      console.error('Error starting chat:', err);
+      setError(err.message || 'Failed to start chat. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -64,12 +89,23 @@ export default function ChatListScreen({ navigation }: any) {
           placeholder="Enter email to chat..."
           placeholderTextColor="#8A9BA8"
           value={searchEmail}
-          onChangeText={setSearchEmail}
+          onChangeText={(text) => {
+            setSearchEmail(text);
+            if (error) setError('');
+          }}
+          editable={!loading}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
-        <TouchableOpacity style={styles.addButton} onPress={createOrOpenThread}>
-          <Text style={styles.addButtonText}>+</Text>
+        <TouchableOpacity 
+          style={[styles.addButton, loading && styles.addButtonDisabled]} 
+          onPress={createOrOpenThread}
+          disabled={loading}
+        >
+          {loading ? <ActivityIndicator color="#050B14" size="small" /> : <Text style={styles.addButtonText}>+</Text>}
         </TouchableOpacity>
       </View>
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
       <FlatList
         data={threads}
@@ -152,6 +188,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#050B14',
+  },
+  addButtonDisabled: {
+    opacity: 0.7,
+  },
+  errorText: {
+    color: '#FF3B30',
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    fontSize: 14,
   },
   threadItem: {
     flexDirection: 'row',
