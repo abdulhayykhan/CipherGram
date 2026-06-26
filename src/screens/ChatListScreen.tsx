@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { firebaseAuth, firebaseFirestore } from '../services/firebase';
+import { firebaseAuth, firebaseFirestore, firebaseFieldValue } from '../services/firebase';
 
 export default function ChatListScreen({ navigation }: any) {
   const [threads, setThreads] = useState<any[]>([]);
@@ -54,7 +54,7 @@ export default function ChatListScreen({ navigation }: any) {
       const newThread = {
         participants: [user.uid, email],
         lastMessage: '',
-        lastMessageTime: firebaseFirestore.FieldValue.serverTimestamp(),
+        lastMessageTime: firebaseFieldValue.serverTimestamp(),
       };
       
       const docRef = await threadsRef.add(newThread);

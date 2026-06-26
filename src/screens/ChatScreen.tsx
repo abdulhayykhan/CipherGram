@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { firebaseAuth, firebaseFirestore } from '../services/firebase';
+import { firebaseAuth, firebaseFirestore, firebaseFieldValue } from '../services/firebase';
 import { encryptMessage, decryptMessage } from '../services/encryption';
 
 export default function ChatScreen({ route, navigation }: any) {
@@ -50,13 +50,13 @@ export default function ChatScreen({ route, navigation }: any) {
     batch.set(newMsgRef, {
       text: encryptedText,
       senderId: user.uid,
-      timestamp: firebaseFirestore.FieldValue.serverTimestamp(),
+      timestamp: firebaseFieldValue.serverTimestamp(),
     });
     
     // Update thread last message
     batch.update(threadsRef, {
       lastMessage: encryptedText,
-      lastMessageTime: firebaseFirestore.FieldValue.serverTimestamp()
+      lastMessageTime: firebaseFieldValue.serverTimestamp()
     });
 
     await batch.commit();
