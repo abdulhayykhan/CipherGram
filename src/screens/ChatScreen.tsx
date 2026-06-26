@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { firebaseAuth, firebaseFirestore, firebaseFieldValue } from '../services/firebase';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { firebaseAuth, firebaseFirestore } from '../services/firebase';
+import firestore from '@react-native-firebase/firestore';
 import { encryptMessage, decryptMessage } from '../services/encryption';
 
 export default function ChatScreen({ route, navigation }: any) {
@@ -40,27 +41,32 @@ export default function ChatScreen({ route, navigation }: any) {
   const sendMessage = async () => {
     if (!inputText.trim() || !isKeySet || !user) return;
 
-    const encryptedText = encryptMessage(inputText.trim(), secretKey);
-    const threadsRef = firebaseFirestore().collection('threads').doc(threadId);
-    
-    const batch = firebaseFirestore().batch();
-    
-    // Add message
-    const newMsgRef = threadsRef.collection('messages').doc();
-    batch.set(newMsgRef, {
-      text: encryptedText,
-      senderId: user.uid,
-      timestamp: firebaseFieldValue.serverTimestamp(),
-    });
-    
-    // Update thread last message
-    batch.update(threadsRef, {
-      lastMessage: encryptedText,
-      lastMessageTime: firebaseFieldValue.serverTimestamp()
-    });
+    try {
+      const encryptedText = encryptMessage(inputText.trim(), secretKey);
+      const threadsRef = firebaseFirestore().collection('threads').doc(threadId);
+      
+      const batch = firebaseFirestore().batch();
+      
+      // Add message
+      const newMsgRef = threadsRef.collection('messages').doc();
+      batch.set(newMsgRef, {
+        text: encryptedText,
+        senderId: user.uid,
+        timestamp: firestore.FieldValue.serverTimestamp(),
+      });
+      
+      // Update thread last message
+      batch.update(threadsRef, {
+        lastMessage: encryptedText,
+        lastMessageTime: firestore.FieldValue.serverTimestamp()
+      });
 
-    await batch.commit();
-    setInputText('');
+      await batch.commit();
+      setInputText('');
+    } catch (err: any) {
+      console.error('Send message error:', err);
+      Alert.alert('Error Sending', err.message || String(err));
+    }
   };
 
   if (!isKeySet) {

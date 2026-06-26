@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { firebaseAuth, firebaseFirestore, firebaseFieldValue } from '../services/firebase';
-
+import { firebaseAuth, firebaseFirestore } from '../services/firebase';
+import firestore from '@react-native-firebase/firestore';
 export default function ChatListScreen({ navigation }: any) {
   const [threads, setThreads] = useState<any[]>([]);
   const [searchEmail, setSearchEmail] = useState('');
@@ -50,16 +50,52 @@ export default function ChatListScreen({ navigation }: any) {
     setLoading(true);
 
     try {
-      const threadsRef = firebaseFirestore().collection('threads');
-      const newThread = {
-        participants: [user.uid, email],
-        lastMessage: '',
-        lastMessageTime: firebaseFieldValue.serverTimestamp(),
-      };
+      // 1. User Lookup First
+      const usersRef = firebaseFirestore().collection('users');
+      const userQuery = await usersRef.where('email', '==', email).limit(1).get();
       
-      const docRef = await threadsRef.add(newThread);
-      setSearchEmail('');
-      navigation.navigate('Chat', { threadId: docRef.id, threadName: email });
+      if (userQuery.empty) {
+        setError('User not found in system.');
+        setLoading(false);
+        return;
+      }
+      
+      const targetUserDoc = userQuery.docs[0];
+      const targetUser = targetUserDoc.data();
+      const targetUid = targetUser.uid || targetUserDoc.id;
+      
+      if (targetUid === user.uid) {
+        setError('You cannot start a chat with yourself.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Prevent Duplicates
+      const threadsRef = firebaseFirestore().collection('threads');
+      const existingThreadsQuery = await threadsRef
+        .where('participants', 'array-contains', user.uid)
+        .get();
+        
+      const existingThread = existingThreadsQuery.docs.find(doc => {
+        const data = doc.data();
+        return data.participants && data.participants.includes(targetUid);
+      });
+
+      // 3. Route or Create
+      if (existingThread) {
+        setSearchEmail('');
+        navigation.navigate('Chat', { threadId: existingThread.id, threadName: targetUser.displayName || email });
+      } else {
+        const newThread = {
+          participants: [user.uid, targetUid],
+          lastMessage: '',
+          lastMessageTime: firestore.FieldValue.serverTimestamp(),
+        };
+        
+        const docRef = await threadsRef.add(newThread);
+        setSearchEmail('');
+        navigation.navigate('Chat', { threadId: docRef.id, threadName: targetUser.displayName || email });
+      }
     } catch (err: any) {
       console.error('Error starting chat:', err);
       setError(err.message || 'Failed to start chat. Please check your connection.');
