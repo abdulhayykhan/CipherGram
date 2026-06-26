@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import auth, { FacebookAuthProvider } from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,19 @@ export default function LoginScreen({ navigation }: any) {
       const facebookCredential = FacebookAuthProvider.credential(data.accessToken);
 
       // Sign-in the user with the credential
-      await auth().signInWithCredential(facebookCredential);
+      const userCredential = await auth().signInWithCredential(facebookCredential);
+      const currentUser = userCredential.user;
+
+      if (currentUser) {
+        // Save user to Firestore 'users' collection so they can be searched by email
+        await firestore().collection('users').doc(currentUser.uid).set({
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          displayName: currentUser.displayName || '',
+          photoURL: currentUser.photoURL || '',
+          lastLogin: firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
       
       // Navigate to ChatList after successful login
       navigation.replace('ChatList');
